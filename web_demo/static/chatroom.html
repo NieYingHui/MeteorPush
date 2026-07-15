@@ -248,9 +248,10 @@
                 console.info('senderName', senderName);
                 // 只有当前选中的房间才显示 (简单Demo逻辑)
                 if(msg.group_id === currentRoom) {
-                   const isMe = (msg.from_user_id === uid);
+                   // 如果消息是自己发的，已通过乐观更新显示，跳过避免重复
+                   if (msg.from_user_id === uid) return;
                    const timeStr = new Date(msg.timestamp_ms || Date.now()).toLocaleTimeString();
-                   appendMsg(text, isMe, senderName, false, timeStr);
+                   appendMsg(text, false, senderName, false, timeStr);
                 }
              } else if (msg.type === 'system_broadcast') {
                 // 处理系统广播
@@ -498,7 +499,7 @@
     document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
     document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
     document.getElementById('password').onkeydown = (e) => {
-       if(e.key === 'Enter') {
+       if(e && e.key === 'Enter') {
           const isReg = !document.getElementById('register-btn').classList.contains('hidden');
           doLoginOrRegister(isReg ? 'register' : 'login');
        }
@@ -514,18 +515,20 @@
     
     // Enter to send
     document.getElementById('msg-input').onkeydown = (e) => {
-       if(e.key === 'Enter') document.getElementById('send-btn').click();
+       if(e && e.key === 'Enter') document.getElementById('send-btn').click();
     };
     
     document.getElementById('send-btn').onclick = () => {
        const txt = document.getElementById('msg-input').value;
        if(!txt || !currentRoom) return;
-       if(ws) ws.send(JSON.stringify({
-          type:'chatroom', group_id:currentRoom, content:{text:txt}, client_msg_id:Date.now()+''
-       }));
-       // 乐观更新
-       // appendMsg(txt, true, myName || '我'); 
-       // 注：如果依赖后端回推 inject sender info，这里最好不乐观更新，或者乐观更新时只有 text
+       const clientMsgId = Date.now()+'';
+       if(ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+             type:'chatroom', group_id:currentRoom, content:{text:txt}, client_msg_id:clientMsgId
+          }));
+       }
+       // 乐观更新：发送者立即看到自己的消息
+       appendMsg(txt, true, myName || '我', false, new Date().toLocaleTimeString());
        document.getElementById('msg-input').value = '';
     };
 

@@ -535,12 +535,12 @@
     });
 
     document.getElementById('send-dm-btn').onclick = sendDanmaku;
-    dmInput.onkeydown = (e) => { if(e.key==='Enter') sendDanmaku(); };
+    dmInput.onkeydown = (e) => { if(e && e.key==='Enter') sendDanmaku(); };
 
     document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
     document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
     document.getElementById('auth-password').onkeydown = (e) => {
-       if(e.key==='Enter') {
+       if(e && e.key==='Enter') {
           const isReg = !document.getElementById('register-btn').classList.contains('hidden');
           doLoginOrRegister(isReg ? 'register' : 'login');
        }

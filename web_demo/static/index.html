@@ -661,10 +661,11 @@
              // 或者如果我是发送者(多端同步)，且目标是 peer，也显示
              // 这里 demo 简化：只要 socket 收到且当前打开了窗口，就追加（真实逻辑需严格校验 session_id）
              
-             // 只有当收到消息的发送者是 currentPeerId，或者是自己发的消息被推回来了
-             // 这里 MeterorPush 的逻辑可能是推回给自己的
+             // 如果是自己发的消息，已经通过乐观更新显示了，跳过避免重复
+             const senderId = Number(obj.sender_id);
+             if (senderId === currentUserId) return;
              
-             appendMsgRow(t, false, senderDisplayName, timeStr); // 默认为对方发
+             appendMsgRow(t, false, senderDisplayName, timeStr); // 对方发来的消息
           } else if (obj.type === 'system_broadcast') {
              // 处理系统广播
              // scope: "all" 为全局推送；scope: "group" 为房间/群推送
@@ -934,7 +935,7 @@
     document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
     document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
     document.getElementById('password').onkeydown = (e) => {
-       if(e.key === 'Enter') {
+       if(e && e.key === 'Enter') {
           const isReg = !document.getElementById('register-btn').classList.contains('hidden');
           doLoginOrRegister(isReg ? 'register' : 'login');
        }
@@ -950,7 +951,7 @@
     
     document.getElementById('refresh-sessions-btn').onclick = loadSingleSessionList;
     document.getElementById('send-btn').onclick = sendMsg;
-    document.getElementById('msg-text').onkeydown = (e) => { if(e.key==='Enter') sendMsg(); };
+    document.getElementById('msg-text').onkeydown = (e) => { if(e && e.key==='Enter') sendMsg(); };
 
     // 点击“拉取更多历史”按钮时，向前分页加载
     document.getElementById('load-more-btn').onclick = () => {
