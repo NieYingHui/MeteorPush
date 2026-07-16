@@ -2,56 +2,83 @@
 
 #include "logging.h"
 
-namespace MeteorPush {
+namespace meteorpush {
 
-// 构造 CometServiceImpl，持有 CometServer 指针以便转发推送。
 CometServiceImpl::CometServiceImpl(CometServer* server)
-        : server_(server) {}
+    : server_(server) {}
 
-// gRPC 下行入口：根据 targets / session_id 将消息分发到本机连接集合。
-::grpc::Status CometServiceImpl::PushToComet(
-        ::grpc::ServerContext*,
-        const ::MeteorPush::PushToCometRequest* request,
-        ::MeteorPush::PushToCometReply* response) {
-    // Comet 侧收到 job/logic 的下行推送请求：
-    // 1. 如果 targets 列表非空，按 user_id 精确推送。
-    // 2. 否则根据 message.session_id 约定进行房间/广播推送：
-    //    - "r_<room_id>" 表示房间广播
-    //    - "broadcast" 表示全服广播（仅限本 comet 内）
-    // 3. PushToUsers/PushToRoom/PushToAll 均只在本机连接集合内分发，
-    //    不跨节点路由，调用方需自行按 comet_id 分片。
-    LOG_INFO << "PushToComet received for comet_id=" << request->comet_id()
-             << " msg_id=" << request->message().msg_id();
-    if (request->targets_size() > 0) {
-        std::vector<int64_t> users;
-        users.reserve(request->targets_size());
-        for (const auto& t : request->targets()) {
-            users.push_back(t.user_id());
-        }
-        server_->PushToUsers(request->message(), users);
-    } else {
-        // targets 为空：按聊天室房间维度投递（依赖 session_id = "r_<room_id>" 约定）
-        const std::string& sid = request->message().session_id();
-        if (sid.size() > 2 && sid[0] == 'r' && sid[1] == '_') {
-            int64_t room_id = 0;
-            try {
-                room_id = std::stoll(sid.substr(2));
-            } catch (...) {
-                room_id = 0;
-            }
-            if (room_id > 0) {
-                server_->PushToRoom(request->message(), room_id);
-            }
-        } else if (sid == "broadcast") {
-            server_->PushToAll(request->message());
-        }
+void CometServiceImpl::ProcessPushRequest(
+    const ::meteorpush::PushToCometRequest& request) {
+  if (request.targets_size() > 0) {
+    // 有明确的目标用户列表：推送给指定用户（单聊）
+    std::vector<int64_t> users;
+    users.reserve(request.targets_size());
+    for (const auto& t : request.targets()) {
+      users.push_back(t.user_id());
     }
-    response->mutable_error()->set_code(0);
-    response->mutable_error()->set_message("ok");
-    return ::grpc::Status::OK;
+    server_->PushToUsers(request.message(), users);
+  } else if (request.room_id() > 0) {
+    // 有 room_id：按房间维度广播（聊天室/弹幕）
+    server_->PushToRoom(request.message(), request.room_id());
+  } else {
+    // 兜底：检查 session_id 前缀（向后兼容）
+    const std::string& sid = request.message().session_id();
+    if (sid.substr(0, 5) == "room:" || sid.substr(0, 8) == "danmaku:") {
+      // 从 session_id 解析 room_id
+      auto colon = sid.find(':');
+      if (colon != std::string::npos) {
+        try {
+          int64_t room_id = std::stoll(sid.substr(colon + 1));
+          if (room_id > 0) {
+            server_->PushToRoom(request.message(), room_id);
+          }
+        } catch (...) {}
+      }
+    } else if (sid == "broadcast") {
+      server_->PushToAll(request.message());
+    }
+  }
 }
 
-}  // namespace MeteorPush
+::grpc::Status CometServiceImpl::PushToComet(
+    ::grpc::ServerContext*,
+    const ::meteorpush::PushToCometRequest* request,
+    ::meteorpush::PushToCometReply* response) {
+  LogInfo("[CometGrpc] PushToComet msg_id=" + request->message().msg_id() +
+          " targets=" + std::to_string(request->targets_size()));
+  ProcessPushRequest(*request);
+  response->mutable_error()->set_code(0);
+  response->mutable_error()->set_message("ok");
+  return ::grpc::Status::OK;
+}
+
+::grpc::Status CometServiceImpl::PushStream(
+    ::grpc::ServerContext* context,
+    ::grpc::ServerReader<::meteorpush::PushToCometRequest>* reader,
+    ::meteorpush::PushStreamReply* response) {
+  (void)context;
+  
+  PushToCometRequest request;
+  int64_t count = 0;
+  
+  LogInfo("[CometGrpc] PushStream started");
+  // 持续读取客户端发送的消息流
+  while (reader->Read(&request)) {
+    LogInfo("[CometGrpc] PushStream read msg_id=" + request.message().msg_id() +
+            " targets=" + std::to_string(request.targets_size()));
+    // persist_only 消息跳过推送
+    if (request.comet_id() != "persist_only") {
+      ProcessPushRequest(request);
+    }
+    ++count;
+  }
+  LogInfo("[CometGrpc] PushStream ended, count=" + std::to_string(count));
+  
+  response->set_received_count(count);
+  return ::grpc::Status::OK;
+}
+
+}  // namespace meteorpush
 
 
 

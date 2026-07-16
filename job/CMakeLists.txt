@@ -1,17 +1,18 @@
 cmake_minimum_required(VERSION 3.14)
 
-# 生成 job_server 可执行程序，包含主入口与服务逻辑。
 add_executable(job_server
-    main.cpp
-    service.cpp
+  main.cpp
+  service.cpp
+  push_handler.cpp
+  persist_handler.cpp
 )
 
 target_link_libraries(job_server
-    PRIVATE
-        MeteorPush_common
-        MeteorPush_proto
-        grpc++
-        grpc
+  PRIVATE
+    meteor_push_common
+    meteor_push_proto
+    grpc++
+    grpc
 )
 
 

@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
-project(MeteorPush LANGUAGES CXX)
+project(meteor_push LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 
 # 让自定义的 Find*.cmake 可被找到（用于兼容系统未提供的 gRPC Config）
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -28,11 +29,11 @@ add_subdirectory(logic)
 add_subdirectory(comet)
 add_subdirectory(job)
 
-add_subdirectory(load_test)
-
-
 if(BUILD_WEB_DEMO)
   add_subdirectory(web_demo)
 endif()
+
+# 压测工具
+add_subdirectory(load_test)
 
 

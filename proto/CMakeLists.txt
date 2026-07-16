@@ -8,8 +8,7 @@ if(NOT GRPC_CPP_PLUGIN_EXECUTABLE)
 endif()
 
 set(PROTO_SRC
-  MeteorPush.proto
-  echo.proto
+  meteor_push.proto
 )
 
 set(GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -40,9 +39,9 @@ foreach(proto ${PROTO_SRC})
   list(APPEND GENERATED_HDRS ${h_file} ${grpc_h_file})
 endforeach()
 
-add_library(MeteorPush_proto ${GENERATED_SRCS})
-target_include_directories(MeteorPush_proto PUBLIC ${GENERATED_DIR})
-target_link_libraries(MeteorPush_proto PUBLIC protobuf::libprotobuf gRPC::grpc++ gRPC::grpc++)
+add_library(meteor_push_proto ${GENERATED_SRCS})
+target_include_directories(meteor_push_proto PUBLIC ${GENERATED_DIR})
+target_link_libraries(meteor_push_proto PUBLIC protobuf::libprotobuf gRPC::grpc++ gRPC::grpc)
 
 
 

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>弹幕 - Meteror Push</title>
+  <title>弹幕 - Spark Push</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>">
   <link rel="stylesheet" href="auth_style.css">
   <style>
@@ -183,7 +183,7 @@
 </head>
 <body>
   <header>
-    <h2>Meteror 弹幕演示</h2>
+    <h2>Spark 弹幕演示</h2>
     <a href="index.html">← 返回首页</a>
   </header>
 
@@ -250,7 +250,7 @@
     const dmInput = document.getElementById('dm-input');
     const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9200/ws';
     
     const videoId = 'demo_video_1';
     const danmakuRoomId = 1001;
@@ -258,6 +258,13 @@
     let ws = null;
     let currentUserId = null;
     let token = null;
+
+    // 构造带 Authorization 的请求头
+    function authHeaders() {
+      const h = {'Content-Type': 'application/json'};
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
     const danmakus = []; 
     // 弹幕按时间片分段加载（毫秒），类似商业视频网站做时间分片预加载
     const DANMAKU_SLICE_MS = 60 * 1000; // 每片 60 秒
@@ -356,7 +363,7 @@
       try {
         const res = await fetch(logicBase + '/api/danmaku/list', {
           method:'POST',
-          headers:{'Content-Type':'application/json'},
+          headers:authHeaders(),
           body:JSON.stringify({
             video_id: videoId,
             from_ms: fromMs,
@@ -476,8 +483,8 @@
     
     async function joinRoom() {
        await fetch(logicBase + '/api/chatroom/join', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ room_id: danmakuRoomId, user_id: currentUserId })
+          method:'POST', headers:authHeaders(),
+          body:JSON.stringify({ room_id: danmakuRoomId })
        });
        if(ws && ws.readyState===1) ws.send(JSON.stringify({ type:'chatroom_join', group_id: danmakuRoomId }));
     }
@@ -494,13 +501,11 @@
        const timelineMs = Math.floor((video.currentTime||0) * 1000);
        try {
           await fetch(logicBase + '/api/danmaku/send', {
-             method:'POST', headers:{'Content-Type':'application/json'},
+             method:'POST', headers:authHeaders(),
              body:JSON.stringify({
-               user_id: currentUserId,
                video_id: videoId,
                timeline_ms: timelineMs,
-               text,
-               token
+               text
              })
           });
           dmInput.value = '';
@@ -535,12 +540,12 @@
     });
 
     document.getElementById('send-dm-btn').onclick = sendDanmaku;
-    dmInput.onkeydown = (e) => { if(e && e.key==='Enter') sendDanmaku(); };
+    dmInput.onkeydown = (e) => { if(e.key==='Enter') sendDanmaku(); };
 
     document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
     document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
     document.getElementById('auth-password').onkeydown = (e) => {
-       if(e && e.key==='Enter') {
+       if(e.key==='Enter') {
           const isReg = !document.getElementById('register-btn').classList.contains('hidden');
           doLoginOrRegister(isReg ? 'register' : 'login');
        }

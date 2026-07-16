@@ -1,16 +1,20 @@
 ## load_test 测试工具说明
 
-本目录提供两类 C++ 测试/压测客户端（代码统一使用 4 空格缩进，函数前均有中文注释，便于阅读与二次开发）：
+本目录提供多种 C++ 测试/压测客户端：
 
-- `ws_client_cli`：功能验证用的 WebSocket 命令行客户端。
-- `load_tester`：多线程、多连接的压测客户端，支持 WebSocket、HTTP、业务流程三类场景。
+| 工具 | 用途 | 性能 |
+|-----|------|-----|
+| `async_ws_bench` | 高性能WebSocket消息推送压测 (epoll) | ~50,000 QPS |
+| `http_bench` | 高性能HTTP API压测 (epoll) | ~86 QPS |
+| `ws_client_cli` | 功能验证用的WebSocket命令行客户端 | - |
+| `load_tester` | 多线程压测客户端（WebSocket/HTTP/业务流程） | - |
 
 ### 一、编译方式
 
 在工程根目录下执行（与主工程一起编译）：
 
 ```bash
-cd /home/ubuntu/course/MeteorPush
+cd /home/ubuntu/course/meteor_push
 mkdir -p build
 cd build
 cmake ..

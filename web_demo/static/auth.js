@@ -172,13 +172,13 @@ function hashPassword(raw) {
 /* --- Session Management (Added for Auto-Login) --- */
 const Auth = {
   // Keys for LocalStorage
-  KEY_TOKEN: 'Meteror_token',
-  KEY_UID: 'Meteror_uid',
-  KEY_NAME: 'Meteror_name',
+  KEY_TOKEN: 'spark_token',
+  KEY_UID: 'spark_uid',
+  KEY_NAME: 'spark_name',
   
   // Keys for Admin
-  KEY_ADMIN_TOKEN: 'Meteror_admin_token',
-  KEY_ADMIN_UID: 'Meteror_admin_uid',
+  KEY_ADMIN_TOKEN: 'spark_admin_token',
+  KEY_ADMIN_UID: 'spark_admin_uid',
 
   // --- User Methods ---
   set: function(uid, token, name) {

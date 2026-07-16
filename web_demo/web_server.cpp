@@ -24,7 +24,7 @@ void PrintUsage(const char* prog) {
   std::fprintf(stderr,
                "用法: %s [--port <端口>] [--doc-root <目录>] "
                "[port] [doc_root]\n"
-               "  -p, --port       指定 HTTP 监听端口 (默认 9000)\n"
+               "  -p, --port       指定 HTTP 监听端口 (默认 9001)\n"
                "  -d, --doc-root   指定静态文件目录 (默认 ./static)\n"
                "可以继续支持旧格式：第一个位置参数为端口，第二个位置参数为目录。\n",
                prog);
@@ -191,7 +191,7 @@ class StaticFileHandler {
 int main(int argc, char* argv[]) {
   Logger::setLogLevel(Logger::INFO);
 
-  uint16_t port = 9000;
+  uint16_t port = 9001;
   std::string doc_root = "./static";
 
   ArgsParseResult parse_result =

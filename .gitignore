@@ -1,71 +1,60 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
+# Build outputs
+build/
+cmake-build-*/
 *.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
 *.exe
 *.out
 *.app
 
-# Build directories
-build/
-Build/
-build-*/
+# Compiled binaries
+comet/comet_server
+logic/logic_server
+job/job_server
+web_demo/web_demo_server
+load_test/load_tester
+load_test/async_ws_bench
+load_test/http_bench
+load_test/ws_client_cli
+load_test/ws_client_lib
 
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
-
-# Temporary files
-*.tmp
+# Logs
+logs/
 *.log
-*.bak
-*.swp
 
-# vcpkg
-vcpkg_installed/
-
-# debug information files
-*.dwo
-
-# test output & cache
-Testing/
-.cache/
-.idea/
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# CMake generated
+CMakeFiles/
+cmake_install.cmake
+CMakeCache.txt
+Makefile
+!CMakeLists.txt
+*.cmake
+!cmake/FindgRPC.cmake
+CTestTestfile.cmake
+DartConfiguration.tcl
+Testing/
+
+# Kafka (binary distribution)
+kafka_2.13-3.7.0/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Core dumps
+core
+core.*
+
+# Dependencies
+third_party/
+
+# Environment
+.env
+.env.local

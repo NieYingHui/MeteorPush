@@ -1,11 +1,11 @@
 -- 自动创建数据库并初始化所有表
 -- 支持重复执行（幂等）
-DROP DATABASE IF EXISTS MeteorPush;
-CREATE DATABASE IF NOT EXISTS `MeteorPush`
+DROP DATABASE IF EXISTS meteor_push;
+CREATE DATABASE IF NOT EXISTS `meteor_push`
   DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-USE `MeteorPush`;
+USE `meteor_push`;
 
 -- 用户表：账户与密码（后续可扩展 profile 字段、盐值和密码哈希）
 CREATE TABLE IF NOT EXISTS `user` (
@@ -31,8 +31,7 @@ CREATE TABLE IF NOT EXISTS `session` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_session_id` (`session_id`),
   KEY `idx_user1` (`user1_id`),
-  KEY `idx_user2` (`user2_id`),
-  KEY `idx_group` (`group_id`)
+  KEY `idx_user2` (`user2_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 消息表：单聊/群聊/聊天室消息
@@ -46,9 +45,7 @@ CREATE TABLE IF NOT EXISTS `message` (
   `timestamp_ms` BIGINT NOT NULL,        -- 发送时间（毫秒）
   `client_msg_id` VARCHAR(128) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_session_seq` (`session_id`, `msg_seq`),
-  KEY `idx_session` (`session_id`),
-  KEY `idx_sender` (`sender_id`)
+  UNIQUE KEY `uk_session_seq` (`session_id`, `msg_seq`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 用户会话状态表：记录每个用户在每个会话的已读游标
@@ -71,7 +68,8 @@ CREATE TABLE IF NOT EXISTS `im_group` (
   `group_type` TINYINT NOT NULL DEFAULT 0,   -- 0=normal_group,1=chatroom,2=danmaku_room
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_owner` (`owner_id`)
+  KEY `idx_owner` (`owner_id`),
+  KEY `idx_type_id` (`group_type`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 群成员表
@@ -95,8 +93,7 @@ CREATE TABLE IF NOT EXISTS `video_danmaku` (
   `content_json` TEXT NOT NULL,
   `timestamp_ms` BIGINT NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_video_timeline` (`video_id`, `timeline_ms`),
-  KEY `idx_sender` (`sender_id`)
+  KEY `idx_video_timeline` (`video_id`, `timeline_ms`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 广播任务表（可用于记录系统广播）

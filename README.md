@@ -1,4 +1,4 @@
-# MeteorPush 消息推送系统
+# Spark-Push
 
 高性能 IM 推送系统，基于 C++17 实现，参考 B 站 goim 三层架构设计。
 
@@ -10,13 +10,13 @@
                            ┌─────────────┐
                            │  Web Client  │
                            └──────┬───────┘
-                                  │ WebSocket (9000)
+                                  │ WebSocket (9200)
                                   ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                     Comet 接入层                              │
 │  WebSocket 连接管理 · 帧解析 · 心跳检测 · 本地房间路由         │
 └────────────┬──────────────────────────────────┬──────────────┘
-             │ gRPC 双向流 (9100)                │ gRPC (9105)
+             │ gRPC 双向流 (9100)                │ gRPC (9205)
              ▼                                   ▲
 ┌────────────────────────┐          ┌────────────┴─────────────┐
 │     Logic 逻辑层        │          │        Job 消费层         │
@@ -65,275 +65,104 @@
 | JSON | nlohmann/json |
 | 构建 | CMake 3.14+ |
 
+## 快速开始
+
+### 环境依赖（Ubuntu 22.04）
+
+```bash
+sudo apt-get install -y \
+    build-essential cmake \
+    libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc \
+    librdkafka-dev libhiredis-dev libmysqlclient-dev \
+    nlohmann-json3-dev libssl-dev zlib1g-dev libc-ares-dev
+```
+
+### 编译
+
+```bash
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+```
+
+### 启动
+
+```bash
+# 确保 Redis、MySQL、Kafka 已启动
+mysql -u root -p < sql/schema.sql    # 初始化数据库
+
+# 启动三个服务（分别在不同终端）
+./build/logic/logic_server
+./build/comet/comet_server
+./build/job/job_server
+
+# 启动 Web Demo（可选）
+./build/web_demo/web_demo_server
+# 访问 http://localhost:9001/index.html
+```
+
 ## 目录结构
 
 ```
-MeteorPush/
-├── comet/          # 接入层：WebSocket 连接管理、gRPC 服务端
+meteor-push/
+├── comet/          # 接入层：WebSocket 连接管理、gRPC 客户端
 ├── logic/          # 逻辑层：gRPC 服务、HTTP API、Redis 路由
 ├── job/            # 消费层：Kafka 消费、推送、持久化
 ├── common/         # 公共组件：连接池、线程池、Kafka 封装
 ├── proto/          # Protocol Buffers 定义
-├── muduo/          # Muduo 网络库（内置，自动编译）
+├── muduo/          # Muduo 网络库（内置）
 ├── web_demo/       # Web 演示前端
 ├── load_test/      # 压测工具
 ├── sql/            # 数据库 Schema
 ├── conf/           # 配置文件
-└── cmake/          # CMake 查找模块
+├── docs/           # 文档（ 
+├── scripts/        # 启停脚本
+└── logs/           # 运行日志
 ```
+ 
 
-## 端口一览
+## 端口规划
 
-| 组件            | 协议/用途                 | 默认端口 | 配置项                                                   |
-| --------------- | ------------------------- | -------- | -------------------------------------------------------- |
-| Logic gRPC      | gRPC 业务入口             | 9100     | `logic.conf: listen_port`                                |
-| Logic HTTP      | 登录/发送消息 HTTP API    | 9101     | `logic.conf: http_port`                                  |
-| Comet WebSocket | 用户长连接                | 9000     | `comet.conf: listen_port`                                |
-| Comet gRPC      | Job 下行到 Comet          | 9105     | `comet.conf: comet_grpc_port`；`job.conf: comet_targets` |
-| Job             | Kafka 消费，向 Comet 推送 | 无监听   | -                                                        |
-| Web Demo        | 静态页面访问              | 9010     | `--port` 启动参数                                        |
+| 服务 | 端口 | 协议 |
+|------|------|------|
+| Comet WebSocket | 9200 | WebSocket |
+| Comet gRPC | 9205 | gRPC |
+| Logic gRPC | 9100 | gRPC |
+| Logic HTTP | 9101 | HTTP |
+| Web Demo | 9001 | HTTP |
 
-- `comet.conf: logic_grpc_target` 必须指向 Logic 的 gRPC 地址（默认 `127.0.0.1:9100`）。
-- 如果调整端口，请同时修改相互引用的配置项（如 `logic_grpc_target`、`comet_targets`），以免连不上。
 
----
-
-## 环境依赖与安装
-
-目标平台：Ubuntu 20.04 / 22.04
-
-### 1. 必备工具
-
-```bash
-sudo apt update
-sudo apt install -y build-essential cmake pkg-config git curl
+# 异常问题
+## grpc protoc多个版本
+cmake ..时报错：
 ```
-
-### 2. 系统库（C++ 编译依赖）
-
-```bash
-# Protobuf + gRPC
-sudo apt install -y protobuf-compiler libprotobuf-dev
-sudo apt install -y libgrpc++-dev protobuf-compiler-grpc
-
-# Kafka 客户端 SDK
-sudo apt install -y librdkafka-dev
-
-# Redis 客户端 SDK
-sudo apt install -y libhiredis-dev
-
-# MySQL 客户端 SDK
-sudo apt install -y libmysqlclient-dev
-
-# JSON 库
-sudo apt install -y nlohmann-json3-dev
-
-# OpenSSL / 压缩
-sudo apt install -y libssl-dev zlib1g-dev
+CMake Warning at /usr/cmake-3.22/Modules/FindProtobuf.cmake:524 (message):
+  Protobuf compiler version 3.12.4 doesn't match library version 3.19.4
+Call Stack (most recent call first):
+  proto/CMakeLists.txt:3 (find_package)
 ```
-
-> **说明**：仓库自带 muduo 源码，通过顶层 CMakeLists 自动编译，无需系统安装 muduo。
-> 若发行版的 gRPC 包缺失，可选用源码编译（官方 quickstart），再通过 `cmake -DgRPC_DIR=<path>` 指向安装前缀。
-
-验证安装：
-
-```bash
-pkg-config --cflags --libs grpc++ grpc
-# 应输出类似: -lgrpc++ -lgrpc
+导致后续编译报错或者启动comet server时卡住，可以使用`whereis protoc`命令查看对应的`protoc`在哪里，使用绝对路径查看其版本，比如
 ```
-
-### 3. 安装 Kafka（KRaft 模式，无需 Zookeeper）
-
-#### 3.1 安装 Java 环境
-
-Kafka 3.7.0 推荐使用 Java 17：
-
-```bash
-sudo apt install -y openjdk-17-jdk
-java -version
+root@VM-8-4-ubuntu:~/darren/11.2-meteor_push/06# whereis protoc
+protoc: /usr/bin/protoc /usr/local/bin/protoc /usr/share/man/man1/protoc.1.gz
+root@VM-8-4-ubuntu:~/darren/11.2-meteor_push/06# /usr/bin/protoc --version
+libprotoc 3.12.4
+root@VM-8-4-ubuntu:~/darren/11.2-meteor_push/06# /usr/local/bin/protoc --version
+libprotoc 3.19.4
 ```
-
-设置 `JAVA_HOME`：
-
-```bash
-# 查找 Java 安装路径
-sudo update-alternatives --config java
-# 示例输出: /usr/lib/jvm/java-17-openjdk-amd64/bin/java
-
-# 编辑 ~/.bashrc，添加：
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$PATH
-
-# 生效
-source ~/.bashrc
-echo $JAVA_HOME
+如果我们需要手动设置默认版本，则使用`export PATH=/usr/local/bin:$PATH`进行设置，即是：
 ```
-
-#### 3.2 下载并配置 Kafka
-
-```bash
-wget https://mirrors.huaweicloud.com/apache/kafka/3.7.0/kafka_2.13-3.7.0.tgz
-tar -xzf kafka_2.13-3.7.0.tgz
-cd kafka_2.13-3.7.0
-
-# 生成集群 ID（KRaft 模式）
-bin/kafka-storage.sh random-uuid
-# 复制输出的 UUID
-
-# 配置 KRaft 模式
-cp config/kraft/server.properties config/kraft/server-local.properties
-# 编辑 server-local.properties，确保：
-#   node.id=1
-#   controller.quorum.voters=1@localhost:9093
-#   listeners=PLAINTEXT://0.0.0.0:9092
-#   advertised.listeners=PLAINTEXT://localhost:9092
-#   log.dirs=/tmp/kraft-combined-logs
-
-# 格式化存储
-bin/kafka-storage.sh format -t <你的UUID> -c config/kraft/server-local.properties
-
-# 启动 Kafka
-bin/kafka-server-start.sh -daemon config/kraft/server-local.properties
-```
-
-#### 3.3 创建 Topic
-
-Kafka **不会由程序自动创建主题**，请先创建：
-
-```bash
-# 推送主通道
-bin/kafka-topics.sh --create \
-  --bootstrap-server 127.0.0.1:9092 \
-  --replication-factor 1 \
-  --partitions 3 \
-  --topic push_to_comet
-
-# 广播任务通道
-bin/kafka-topics.sh --create \
-  --bootstrap-server 127.0.0.1:9092 \
-  --replication-factor 1 \
-  --partitions 3 \
-  --topic broadcast_task
-```
-
-验证：
-
-```bash
-bin/kafka-topics.sh --list --bootstrap-server 127.0.0.1:9092
-```
-
-### 4. 安装 MySQL 并初始化
-
-```bash
-# 安装 MySQL Server（如未安装）
-sudo apt install -y mysql-server
-sudo systemctl start mysql
-
-# 初始化数据库
-mysql -u root -p < sql/schema.sql
-```
-
-### 5. 安装 Redis
-
-```bash
-sudo apt install -y redis-server
-sudo systemctl start redis-server
-```
-
----
-
-## 编译
-
-```bash
-cd MeteorPush
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make
-```
-
-编译输出在 `build/` 目录下：
-
-| 可执行文件 | 路径 |
-|-----------|------|
-| logic_server | `build/logic/logic_server` |
-| comet_server | `build/comet/comet_server` |
-| job_server | `build/job/job_server` |
-| web_demo_server | `build/web_demo/web_demo_server`（若启用 `BUILD_WEB_DEMO`） |
-| ws_client_cli | `build/load_test/ws_client_cli` |
-| load_tester | `build/load_test/load_tester` |
-
-如需关闭 Web Demo：`cmake .. -DBUILD_WEB_DEMO=OFF`
-
----
-
-## 运行指引
-
-### 配置
-
-- 默认配置位于 `conf/logic.conf`、`conf/comet.conf`、`conf/job.conf`。
-- 重点字段：
-  - `logic.conf`：`listen_port`(gRPC)、`http_port`(HTTP)、Kafka/Redis/MySQL 连接信息。
-  - `comet.conf`：`listen_port`(WS)、`comet_grpc_port`、`logic_grpc_target`。
-  - `job.conf`：`kafka_*` 以及 `comet_targets`（`名称=地址:端口`）。
-- 每个可执行文件均支持 `--config <path>` 指定配置文件。
-
-### 启动顺序
-
-```bash
-# 确保 Redis、MySQL、Kafka 已启动
-
-cd MeteorPush/build
-
-# 依次启动（分别在不同终端）
-./logic/logic_server --config ../conf/logic.conf
-./comet/comet_server --config ../conf/comet.conf
-./job/job_server   --config ../conf/job.conf
-
-# 可选：启动 Web Demo
-./web_demo/web_demo_server --port 9010 --doc-root ../web_demo/static
-# 访问 http://localhost:9010/index.html
-```
-
-- 多个 Comet 实例可复用同一配置文件，只需调整 `comet_id`、`listen_port`、`comet_grpc_port` 并在 `job.conf` 的 `comet_targets` 中一一列出。
-- 若端口占用，可修改对应配置，再按端口表保持互相引用的一致性。
-
----
-
-## 常见问题
-
-### 依赖缺失
-
-若 CMake 报告库未找到，请确认相关 `-dev` 包已安装，并检查 `CMAKE_PREFIX_PATH` / `PKG_CONFIG_PATH`。
-
-### protoc 版本不匹配
-
-CMake 报错：
-
-```
-Protobuf compiler version 3.12.4 doesn't match library version 3.19.4
-```
-
-解决方法：
-
-```bash
-# 查看多版本 protoc
-whereis protoc
-/usr/bin/protoc --version
-/usr/local/bin/protoc --version
-
-# 指定高版本优先
+# 在终端执行
 export PATH=/usr/local/bin:$PATH
-protoc --version  # 确认切换成功
+# 然后
+protoc --version
+此时就显示的是/usr/local/bin/protoc路径的版本。
+
 ```
+## SSL报错
+将11.2-meteor_push/cmake目录里的 FindgRPC-bk.cmake替换默认的FindgRPC.cmake
 
-### 端口冲突 / 互相引用错误
 
-- `logic.conf: listen_port` 用于 gRPC，`http_port` 用于 HTTP 接口；
-- `comet.conf: listen_port` 用于 WebSocket，`comet_grpc_port` 用于向 Job 暴露的 gRPC；
-- `comet.conf: logic_grpc_target` 必须指向 Logic 的 gRPC 地址；
-- `job.conf: comet_targets` 中的端口必须与对应 Comet 的 `comet_grpc_port` 一致。
-
-### Kafka 主题不存在
-
-启动 `job_server` 前请先创建 `push_to_comet`、`broadcast_task`，或启用集群自动创建。
-
+bin/kafka-storage.sh format -t VoJAPW_gT72qUMRUvAFVLw -c config/kraft/server-local.properties
+bin/kafka-server-start.sh -daemon config/kraft/server-local.properties
+很好，我现在将06/作为我的最新版本，但是项目名称是Spark_push，我现在的项目名称是MeteorPush，所有你要按照

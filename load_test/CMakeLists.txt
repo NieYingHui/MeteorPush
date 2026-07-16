@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(MeteorPush_load_test LANGUAGES CXX)
+project(meteor_push_load_test LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,22 @@ add_executable(load_tester
 target_link_libraries(load_tester
     PRIVATE Threads::Threads
             ws_client_lib
+)
+
+# 基于epoll的异步WebSocket压测工具
+add_executable(async_ws_bench
+    async_ws_bench.cpp
+)
+target_link_libraries(async_ws_bench
+    PRIVATE Threads::Threads
+)
+
+# 基于epoll的HTTP消息推送压测工具
+add_executable(http_bench
+    http_bench.cpp
+)
+target_link_libraries(http_bench
+    PRIVATE Threads::Threads
 )
 
 

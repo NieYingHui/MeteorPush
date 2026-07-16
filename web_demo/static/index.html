@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>Meteror Chat - 消息中心</title>
+  <title>Spark Chat - 消息中心</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   <link rel="stylesheet" href="auth_style.css">
   <style>
@@ -316,7 +316,7 @@
   <!-- 左侧侧边栏 -->
   <div id="sidebar">
     <div class="sidebar-header">
-      <h2>MeterorPush</h2>
+      <h2>Spark Push</h2>
       <div style="font-size:12px;color:#999;margin-top:4px;">商业化 IM 演示 (Single Chat)</div>
     </div>
 
@@ -345,6 +345,7 @@
             <a href="chatroom.html" style="font-size:13px; color:#1976d2; text-decoration:none;">👉 聊天室 (群聊)</a>
             <a href="danmaku.html" style="font-size:13px; color:#1976d2; text-decoration:none;">👉 视频弹幕</a>
             <a href="admin_chatroom.html" style="font-size:13px; color:#666; text-decoration:none;">🛡️ 管理后台</a>
+            <a href="test.html" style="font-size:13px; color:#e65100; text-decoration:none; font-weight:bold;">🔧 测试控制台 (双面板)</a>
          </div>
       </div>
     </div>
@@ -389,7 +390,7 @@
     <!-- 状态 A: 未选择会话 -->
     <div id="empty-state">
       <div style="font-size:60px; margin-bottom:20px;">👋</div>
-      <h3>欢迎使用 Meteror Push</h3>
+      <h3>欢迎使用 Spark Push</h3>
       <p style="font-size:14px;">请在左侧选择一个联系人开始聊天</p>
     </div>
 
@@ -434,8 +435,15 @@
 
     // 配置
     const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+
+    // 构造带 Authorization 的请求头
+    function authHeaders() {
+      const h = {'Content-Type': 'application/json'};
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9200/ws';
 
     // --- 界面切换逻辑 ---
     function updateUIState() {
@@ -661,11 +669,10 @@
              // 或者如果我是发送者(多端同步)，且目标是 peer，也显示
              // 这里 demo 简化：只要 socket 收到且当前打开了窗口，就追加（真实逻辑需严格校验 session_id）
              
-             // 如果是自己发的消息，已经通过乐观更新显示了，跳过避免重复
-             const senderId = Number(obj.sender_id);
-             if (senderId === currentUserId) return;
+             // 只有当收到消息的发送者是 currentPeerId，或者是自己发的消息被推回来了
+             // 这里 Spark Push 的逻辑可能是推回给自己的
              
-             appendMsgRow(t, false, senderDisplayName, timeStr); // 对方发来的消息
+             appendMsgRow(t, false, senderDisplayName, timeStr); // 默认为对方发
           } else if (obj.type === 'system_broadcast') {
              // 处理系统广播
              // scope: "all" 为全局推送；scope: "group" 为房间/群推送
@@ -704,8 +711,8 @@
       try {
         const resp = await fetch(logicBase + '/api/session/list_single', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: currentUserId })
+          headers: authHeaders(),
+          body: JSON.stringify({})
         });
         const data = await resp.json();
         if (data.code === 0) {
@@ -766,7 +773,7 @@
        try {
          const resp = await fetch(logicBase + '/api/session/history', {
            method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
+           headers: authHeaders(),
            body: JSON.stringify({
              session_id: currentSessionId,
              anchor_seq: anchor,
@@ -935,7 +942,7 @@
     document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
     document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
     document.getElementById('password').onkeydown = (e) => {
-       if(e && e.key === 'Enter') {
+       if(e.key === 'Enter') {
           const isReg = !document.getElementById('register-btn').classList.contains('hidden');
           doLoginOrRegister(isReg ? 'register' : 'login');
        }
@@ -951,7 +958,7 @@
     
     document.getElementById('refresh-sessions-btn').onclick = loadSingleSessionList;
     document.getElementById('send-btn').onclick = sendMsg;
-    document.getElementById('msg-text').onkeydown = (e) => { if(e && e.key==='Enter') sendMsg(); };
+    document.getElementById('msg-text').onkeydown = (e) => { if(e.key==='Enter') sendMsg(); };
 
     // 点击“拉取更多历史”按钮时，向前分页加载
     document.getElementById('load-more-btn').onclick = () => {

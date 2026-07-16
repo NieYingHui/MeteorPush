@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package MeteorPush.rpc.bench;
+package meteorpush.rpc.bench;
 
 message EchoRequest {
     bytes payload = 1;

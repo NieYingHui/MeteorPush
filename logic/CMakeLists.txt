@@ -17,8 +17,8 @@ add_executable(logic_server
 
 target_link_libraries(logic_server
   PRIVATE
-    MeteorPush_common
-    MeteorPush_proto
+    meteor_push_common
+    meteor_push_proto
     muduo_net
     muduo_http
     muduo_base
